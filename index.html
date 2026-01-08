@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Prodotti Premium</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>Prodotto<span>Scan</span></h1>
+            <p>Inquadra il codice a barre per scoprire i dettagli</p>
+        </header>
+
+        <main>
+            <div id="reader-container" class="scanner-box">
+                <div id="reader"></div>
+            </div>
+
+            <div id="result" class="result-card hidden">
+                <div class="product-header">
+                    <img id="product-image" src="" alt="Prodotto" class="product-img">
+                    <div class="product-title-group">
+                        <h2 id="product-name">Nome Prodotto</h2>
+                        <span id="product-brand" class="brand-badge">Marca</span>
+                    </div>
+                </div>
+                
+                <div class="product-details">
+                    <div class="detail-section">
+                        <h3>📦 Ingredienti</h3>
+                        <p id="product-ingredients">Scansiona un prodotto per vedere gli ingredienti.</p>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>💡 Modalità d'uso / Info</h3>
+                        <p id="product-usage">Informazioni sull'uso non disponibili.</p>
+                    </div>
+                </div>
+
+                <button id="reset-btn" class="action-btn">Nuova Scansione</button>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
