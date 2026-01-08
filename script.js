@@ -1,107 +1,121 @@
-const html5QrCode = new Html5Qrcode("reader");
-const resultCard = document.getElementById('result');
-const readerContainer = document.getElementById('reader-container');
-const resetBtn = document.getElementById('reset-btn');
+document.addEventListener('DOMContentLoaded', () => {
+    const readerElement = "reader";
+    const resultCard = document.getElementById('result-card');
+    const scannerContainer = document.getElementById('scanner-container');
+    const resetBtn = document.getElementById('reset-btn');
 
-// Elements to populate
-const prodImg = document.getElementById('product-image');
-const prodName = document.getElementById('product-name');
-const prodBrand = document.getElementById('product-brand');
-const prodIngredients = document.getElementById('product-ingredients');
-const prodUsage = document.getElementById('product-usage');
+    // UI Elements
+    const productImg = document.getElementById('product-image');
+    const productName = document.getElementById('product-name');
+    const productBrand = document.getElementById('product-brand');
+    const productIngredients = document.getElementById('product-ingredients');
+    const productUsage = document.getElementById('product-usage');
+    const nutriscoreBadge = document.getElementById('nutriscore-badge');
 
-const qrConfig = { fps: 10, qrbox: { width: 250, height: 250 } };
+    let html5QrcodeScanner = null;
 
-function onScanSuccess(decodedText, decodedResult) {
-    // Stop scanning
-    html5QrCode.stop().then(() => {
-        readerContainer.classList.add('hidden');
-        fetchProductData(decodedText);
-    }).catch(err => {
-        console.error("Failed to stop scanning", err);
-    });
-}
+    function onScanSuccess(decodedText, decodedResult) {
+        // Stop scanning after success
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear().then(() => {
+                scannerContainer.classList.add('hidden');
+                fetchProductData(decodedText);
+            }).catch(error => {
+                console.error("Failed to clear scanner", error);
+            });
+        }
+    }
 
-function onScanFailure(error) {
-    // handle scan failure, usually better to ignore and keep scanning.
-    // console.warn(`Code scan error = ${error}`);
-}
+    function onScanFailure(error) {
+        // handle scan failure, usually better to ignore and keep scanning.
+        // console.warn(`Code scan error = ${error}`);
+    }
 
-async function fetchProductData(barcode) {
-    try {
-        // Show loading state or similar if needed
-        console.log(`Fetching data for ${barcode}...`);
+    async function fetchProductData(barcode) {
+        // Show loading state implicitly by showing the card with placeholders or a spinner if preferred
+        // For now, we will populate the card then show it.
         
-        const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-        const data = await response.json();
+        const apiUrl = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
 
-        if (data.status === 1) {
-            displayProduct(data.product);
-        } else {
-            alert("Prodotto non trovato!");
+        try {
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+
+            if (data.status === 1) {
+                const product = data.product;
+                displayProduct(product);
+            } else {
+                alert("Prodotto non trovato!");
+                resetScanner();
+            }
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            alert("Errore nel recupero dei dati del prodotto.");
             resetScanner();
         }
-    } catch (error) {
-        console.error("Error fetching product data:", error);
-        alert("Errore nel recupero dei dati.");
-        resetScanner();
-    }
-}
-
-function displayProduct(product) {
-    resultCard.classList.remove('hidden');
-
-    // Populate data
-    prodName.textContent = product.product_name || "Nome sconosciuto";
-    prodBrand.textContent = product.brands || "Marca sconosciuta";
-    prodImg.src = product.image_front_url || 'https://via.placeholder.com/150?text=No+Image';
-    
-    // Ingredients
-    if (product.ingredients_text_it) {
-        prodIngredients.textContent = product.ingredients_text_it;
-    } else if (product.ingredients_text) {
-        prodIngredients.textContent = product.ingredients_text;
-    } else {
-        prodIngredients.textContent = "Ingredienti non disponibili.";
     }
 
-    // Usage / Prep
-    // Note: OpenFoodFacts 'usage' or 'preparation' fields are often empty or vary. 
-    // We try to check a few common fields or generic info.
-    // 'serving_quantity' or 'packaging' might be proxies for usage context, but real "instructions" are rare in structured format.
-    // We will check for generic text or display a default message if empty.
-    
-    // In many cases, usage instruction isn't a standard field. We'll try to join some info if available.
-    // Sometimes simple "quantity" is all we have.
-    const usageInfo = [];
-    if (product.quantity) usageInfo.push(`Quantità: ${product.quantity}`);
-    if (product.preparation) usageInfo.push(`Preparazione: ${product.preparation}`);
-    
-    if (usageInfo.length > 0) {
-        prodUsage.textContent = usageInfo.join('. ');
-    } else {
-        prodUsage.textContent = "Nessuna istruzione specifica trovata. Consultare la confezione.";
-    }
-}
+    function displayProduct(product) {
+        resultCard.classList.remove('hidden');
 
-function resetScanner() {
-    resultCard.classList.add('hidden');
-    readerContainer.classList.remove('hidden');
+        // Populate Data
+        productName.textContent = product.product_name || "Nome sconosciuto";
+        productBrand.textContent = product.brands || "Marca sconosciuta";
+        productImg.src = product.image_front_url || 'https://via.placeholder.com/150?text=No+Image';
+        
+        // Ingredients
+        productIngredients.textContent = product.ingredients_text_it || product.ingredients_text || "Ingredienti non disponibili.";
+
+        // Usage / Storage (Looking for various fields as 'usage' is not standard everywhere)
+        // Some products have 'stores' or 'preparation' fields.
+        let usageInfo = [];
+        if (product.preservation_categories) usageInfo.push(product.preservation_categories);
+        if (product.serving_quantity) usageInfo.push(`Porzione: ${product.serving_quantity}`);
+        if (product.preparation_state) usageInfo.push(`Stato: ${product.preparation_state}`);
+        
+        productUsage.textContent = usageInfo.length > 0 ? usageInfo.join('. ') : "Nessuna istruzione specifica trovata.";
+
+        // Nutriscore
+        if (product.nutriscore_grade) {
+            nutriscoreBadge.textContent = `Nutriscore: ${product.nutriscore_grade.toUpperCase()}`;
+            // Color code
+            const scoreColorMap = {
+                'a': '#1e7e48', // Green
+                'b': '#85bb2f',
+                'c': '#fecb02',
+                'd': '#ee8100',
+                'e': '#e63e11'  // Red
+            };
+            nutriscoreBadge.style.color = scoreColorMap[product.nutriscore_grade] || '#fff';
+        } else {
+            nutriscoreBadge.textContent = "";
+        }
+    }
+
+    function startScanner() {
+        resultCard.classList.add('hidden');
+        scannerContainer.classList.remove('hidden');
+
+        html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader",
+            { 
+                fps: 10, 
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            },
+            /* verbose= */ false
+        );
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+
+    function resetScanner() {
+        resultCard.classList.add('hidden');
+        scannerContainer.classList.remove('hidden');
+        startScanner();
+    }
+
+    resetBtn.addEventListener('click', resetScanner);
+
+    // Initial Start
     startScanner();
-}
-
-function startScanner() {
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        qrConfig,
-        onScanSuccess,
-        onScanFailure
-    ).catch(err => {
-        console.error("Error starting scanner", err);
-        readerContainer.innerHTML = `<p style="color:white; text-align:center; padding:20px;">Impossibile accedere alla fotocamera. Assicurati di aver dato i permessi.</p>`;
-    });
-}
-
-// Initialize
-resetBtn.addEventListener('click', resetScanner);
-startScanner();
+});
